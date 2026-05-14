@@ -630,7 +630,7 @@
       <div id="retention-data-fields" style="display:none">
         <div class="callout callout-muted" style="margin-bottom:16px">
           <div class="cl-label">Instructions</div>
-          <div style="font-size:13px;color:var(--text);line-height:1.5;margin-top:4px">Pull your first-time clients from <strong>7 months ago</strong>. This gives us a clean 6-month runway to see who actually came back within 90 days.</div>
+          <div style="font-size:13px;color:var(--text);line-height:1.5;margin-top:4px">Pull your first-time clients from <strong>7 months ago</strong>. This gives us a clean 6-month window to see who actually came back within 90, 120, or 180 days — but for our calculations, we are targeting the <strong>90-day metric</strong>.</div>
         </div>
         <div class="field-group">
           <label class="field-label">New Clients (7 months ago)</label>
@@ -639,6 +639,11 @@
         <div class="field-group">
           <label class="field-label">How many returned within 90 days?</label>
           <input class="field-input" id="returnedIn90" type="number" inputmode="numeric" placeholder="e.g. 9">
+        </div>
+        <div id="retention-rate-result" style="display:none;margin-top:4px;border-radius:14px;padding:16px 18px;transition:all 0.3s">
+          <div id="retention-rate-pct" style="font-size:22px;font-weight:800;letter-spacing:-0.01em;margin-bottom:4px"></div>
+          <div id="retention-rate-label" style="font-size:12px;font-weight:600;margin-bottom:2px"></div>
+          <div id="retention-rate-sub" style="font-size:11px;opacity:0.75;line-height:1.5"></div>
         </div>
       </div>
 
@@ -1232,10 +1237,29 @@ function selectRetentionData(hasData) {
 }
 
 function prefillRetentionScreen() {
-  // Auto-fill annual new clients from Bucket 1
+  // Auto-fill annual new clients — annualize from Bucket 1 data
   const t = getTotals();
   if (t.ftClients > 0) {
-    document.getElementById('annualNewClients').placeholder = `Auto: ${fmtN(t.ftClients)} from Bucket 1`;
+    const filledMonths = state.monthData.filter(m => m.ftClients !== '').length || 1;
+    const annualized   = Math.round((t.ftClients / filledMonths) * 12);
+    const ancField     = document.getElementById('annualNewClients');
+    // Show annualized figure as placeholder with explanation
+    ancField.placeholder = `Auto: ${fmtN(annualized)}/yr`;
+    // Add helper note below the field explaining the math
+    const existingNote = document.getElementById('anc-auto-note');
+    if (!existingNote) {
+      const note = document.createElement('div');
+      note.id = 'anc-auto-note';
+      note.style.cssText = 'font-size:11px;color:var(--muted);margin-top:4px;line-height:1.5';
+      note.innerHTML = `Based on <strong>${fmtN(t.ftClients)}</strong> new clients across <strong>${filledMonths}</strong> month${filledMonths>1?'s':''} of data &nbsp;→&nbsp; <strong>${fmtN(Math.round(t.ftClients/filledMonths))}/mo avg × 12 = ${fmtN(annualized)}/yr</strong>. Edit above to override.`;
+      ancField.parentNode.appendChild(note);
+    }
+    // Auto-populate the field if coach hasn't already entered a value
+    if (!state.annualNewClients) {
+      ancField.value = annualized;
+      state.annualNewClients = String(annualized);
+      saveState();
+    }
   }
 
   // Restore state values
@@ -1247,11 +1271,66 @@ function prefillRetentionScreen() {
   // Wire up inputs — use 'input' so state saves on every keystroke, not just on blur
   ['sevenMonthClients','returnedIn90','annualNewClients','avgTicket'].forEach(id => {
     const el = document.getElementById(id);
-    if (el) { el.addEventListener('input', function() { state[id] = this.value; saveState(); }); }
+    if (el) {
+      el.addEventListener('input', function() {
+        state[id] = this.value;
+        saveState();
+        updateRetentionRateDisplay();
+      });
+    }
   });
+  updateRetentionRateDisplay();
 
   // Restore toggle
   if (state.hasRetentionData !== null) selectRetentionData(state.hasRetentionData);
+}
+
+function updateRetentionRateDisplay() {
+  const smc  = parseFloat(document.getElementById('sevenMonthClients').value);
+  const r90  = parseFloat(document.getElementById('returnedIn90').value);
+  const box  = document.getElementById('retention-rate-result');
+  if (!box) return;
+
+  if (!smc || !r90 || smc <= 0) { box.style.display = 'none'; return; }
+
+  const pct  = Math.round((r90 / smc) * 100);
+  const gap  = 50 - pct;
+  const good = pct >= 50;
+
+  box.style.display = '';
+  box.style.background   = good ? 'rgba(42,157,92,0.08)' : 'rgba(253,129,141,0.10)';
+  box.style.border       = `1.5px solid ${good ? 'rgba(42,157,92,0.3)' : 'rgba(253,129,141,0.4)'}`;
+
+  document.getElementById('retention-rate-pct').style.color = good ? 'var(--success)' : 'var(--accent)';
+  document.getElementById('retention-rate-pct').textContent = `Your New Client Retention Rate: ${pct}%`;
+
+  document.getElementById('retention-rate-label').style.color = good ? 'var(--success)' : 'var(--accent)';
+  document.getElementById('retention-rate-label').textContent = good
+    ? '✓ At or above the R+Coach 50% benchmark!'
+    : `${gap} percentage point${gap!==1?'s':''} below the R+Coach 50% benchmark.`;
+
+  const subEl = document.getElementById('retention-rate-sub');
+  if (good) {
+    subEl.innerHTML = `
+      <div style="margin-bottom:8px">You've mastered the 2nd visit — but the real milestone is <strong>Visit 4</strong>. Here's what the data shows:</div>
+      <div style="background:rgba(107,63,160,0.08);border-radius:10px;padding:12px;border-left:3px solid var(--purple);margin-bottom:8px">
+        <div style="display:flex;justify-content:space-between;margin-bottom:6px">
+          <span>2nd Visit <strong style="color:var(--success)">✓ ${pct}%</strong></span>
+          <span style="color:var(--muted);font-size:10px">You're here</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:6px">
+          <span>3rd Visit <strong style="color:var(--purple)">~36%</strong></span>
+          <span style="color:var(--muted);font-size:10px">3rd visit attrition</span>
+        </div>
+        <div style="display:flex;justify-content:space-between">
+          <span>4th Visit <strong style="color:var(--purple)">~26%</strong></span>
+          <span style="color:var(--muted);font-size:10px">Where loyalty is born</span>
+        </div>
+      </div>
+      <div style="color:var(--purple);font-weight:600;font-size:11px">Salons that master all 4 visits unlock a whole new level of client lifetime value — that's where advanced R+Coach digital marketing &amp; service experience coaching picks up. 🚀</div>`;
+  } else {
+    subEl.textContent = `R+Coach benchmark is 50%. Closing this gap is one of the highest-ROI moves a salon can make.`;
+  }
 }
 
 // ============================================================
@@ -1269,7 +1348,8 @@ function renderBucket2Analysis() {
   const at = parseFloat(state.avgTicket) || 0;
   const currentRev = getRetentionRevenue(retPct);
   const benchmarkRev = getRetentionRevenue(BENCHMARK_RETENTION);
-  const uplift = benchmarkRev - currentRev;
+  const uplift = Math.max(0, benchmarkRev - currentRev);
+  const aboveBench = retPct >= BENCHMARK_RETENTION;
 
   // Subtitle
   document.getElementById('b2-subtitle').textContent =
@@ -1356,9 +1436,20 @@ function renderBucket2Analysis() {
       </div>
 
       <div style="background:var(--dark);padding:16px 18px">
-        <div style="font-size:10px;font-weight:700;letter-spacing:0.1em;color:rgba(255,255,255,0.5);margin-bottom:6px">THE OPPORTUNITY</div>
-        <div style="font-size:28px;font-weight:800;color:#fff">${fmt$(uplift)}<span style="font-size:13px;font-weight:500;color:rgba(255,255,255,0.5)">/yr more</span></div>
-        <div style="font-size:12px;color:rgba(255,255,255,0.6);margin-top:4px">${fmtN(retainedBench - retainedCurrent)} more returning clients × ${fmt$(at)} × 4 visits — from the same new clients already walking in.</div>
+        ${aboveBench ? `
+          <div style="font-size:10px;font-weight:700;letter-spacing:0.1em;color:var(--success);margin-bottom:6px">✓ RETENTION BENCHMARK ACHIEVED</div>
+          <div style="font-size:22px;font-weight:800;color:var(--success);margin-bottom:6px">${retPct.toFixed(0)}% — Gold Standard</div>
+          <div style="font-size:12px;color:rgba(255,255,255,0.7);margin-bottom:10px">You've mastered the 2nd visit. You're generating <strong style="color:#fff">${fmt$(currentRev)}/yr</strong> from new client retention alone.</div>
+          <div style="background:rgba(107,63,160,0.3);border-radius:10px;padding:12px;font-size:11px;color:rgba(255,255,255,0.85);border-left:3px solid var(--purple)">
+            <div style="font-weight:700;color:var(--purple);margin-bottom:4px">YOUR NEXT FRONTIER: VISIT 3 & 4</div>
+            <div>Even at ${retPct.toFixed(0)}%, 3rd visit attrition runs ~36% and 4th visit sits at ~26%. That's where lifetime loyalty — and lifetime value — is truly built.</div>
+            <div style="margin-top:6px;font-weight:600;color:var(--purple)">Ask your R+Coach advisor about the New Client Migration Report →</div>
+          </div>
+        ` : `
+          <div style="font-size:10px;font-weight:700;letter-spacing:0.1em;color:rgba(255,255,255,0.5);margin-bottom:6px">THE OPPORTUNITY</div>
+          <div style="font-size:28px;font-weight:800;color:#fff">${fmt$(uplift)}<span style="font-size:13px;font-weight:500;color:rgba(255,255,255,0.5)">/yr more</span></div>
+          <div style="font-size:12px;color:rgba(255,255,255,0.6);margin-top:4px">${fmtN(retainedBench - retainedCurrent)} more returning clients × ${fmt$(at)} × 4 visits — from the same new clients already walking in.</div>
+        `}
       </div>
     </div>`;
 
@@ -1378,8 +1469,9 @@ function renderBucket3() {
   const retailUplift = getProjectedRetailUplift();
   const retCurrentRev = getRetentionRevenue(retPct);
   const retBenchRev = getRetentionRevenue(BENCHMARK_RETENTION);
-  const retUplift = retBenchRev - retCurrentRev;
+  const retUplift = Math.max(0, retBenchRev - retCurrentRev); // floor at $0 — above benchmark = no uplift needed
   const totalUplift = retailUplift + retUplift;
+  const aboveBenchmark = retPct >= BENCHMARK_RETENTION;
 
   const annualClients = getAnnualClients();
   const anc2 = parseFloat(state.annualNewClients) || getTotals().ftClients;
@@ -1405,19 +1497,29 @@ function renderBucket3() {
           <div style="font-size:10px;color:var(--muted);margin-top:4px">Note: this is the simple top-line lift. The PDF forecast shows a realistic month-by-month ramp.</div>
         </div>
       </div>
-      <div style="background:rgba(107,63,160,0.06);border-radius:14px;padding:16px;border-top:3px solid var(--purple)">
-        <div style="font-size:11px;font-weight:700;letter-spacing:0.1em;color:var(--purple);margin-bottom:6px">RETENTION UPLIFT</div>
-        <div style="font-size:28px;font-weight:800;color:var(--dark);margin-bottom:8px">${fmt$(retUplift)}</div>
-        <div style="font-size:11px;font-weight:600;color:var(--muted);margin-bottom:4px">Raising return rate:</div>
-        <div style="font-size:12px;font-weight:700;color:var(--dark);margin-bottom:10px">${retPct.toFixed(0)}% → 50% (benchmark)</div>
-        <div style="background:rgba(107,63,160,0.08);border-radius:8px;padding:10px;font-size:11px;color:var(--dark);line-height:1.6">
-          <div style="font-weight:700;margin-bottom:4px;color:var(--purple)">HOW WE CALCULATED THIS</div>
-          <div>${Math.round(anc2).toLocaleString()} new clients/yr × (50% − ${retPct.toFixed(0)}%)</div>
-          <div>= ${Math.round(anc2*(0.5-retPct/100))} extra retained clients</div>
-          <div>× ${fmt$(at2)} avg ticket × 4 visits/yr</div>
-          <div style="border-top:1px solid rgba(107,63,160,0.2);margin-top:4px;padding-top:4px;font-weight:700">${Math.round(anc2*(0.5-retPct/100))} × ${fmt$(at2)} × 4 = ${fmt$(retUplift)}</div>
-          <div style="font-size:10px;color:var(--muted);margin-top:4px">${at2===0?'⚠️ Enter avg ticket on the Retention screen to see this calculation.':''}</div>
-        </div>
+      <div style="background:${aboveBenchmark?'rgba(42,157,92,0.06)':'rgba(107,63,160,0.06)'};border-radius:14px;padding:16px;border-top:3px solid ${aboveBenchmark?'var(--success)':'var(--purple)'}">
+        <div style="font-size:11px;font-weight:700;letter-spacing:0.1em;color:${aboveBenchmark?'var(--success)':'var(--purple)'};margin-bottom:6px">${aboveBenchmark?'RETENTION ✓ BENCHMARK ACHIEVED':'RETENTION UPLIFT'}</div>
+        ${aboveBenchmark ? `
+          <div style="font-size:22px;font-weight:800;color:var(--success);margin-bottom:8px">${retPct.toFixed(0)}% ✓</div>
+          <div style="font-size:11px;font-weight:600;color:var(--muted);margin-bottom:8px">Already above the 50% R+Coach benchmark</div>
+          <div style="background:rgba(42,157,92,0.08);border-radius:8px;padding:10px;font-size:11px;color:var(--dark);line-height:1.6">
+            <div style="font-weight:700;margin-bottom:4px;color:var(--success)">YOUR NEXT FRONTIER</div>
+            <div>You've mastered the 2nd visit. The opportunity now is <strong>Visit 3 & 4 conversion</strong>.</div>
+            <div style="margin-top:6px;color:var(--purple);font-weight:600">Ask your R+Coach advisor about the New Client Migration Report →</div>
+          </div>
+        ` : `
+          <div style="font-size:28px;font-weight:800;color:var(--dark);margin-bottom:8px">${fmt$(retUplift)}</div>
+          <div style="font-size:11px;font-weight:600;color:var(--muted);margin-bottom:4px">Raising return rate:</div>
+          <div style="font-size:12px;font-weight:700;color:var(--dark);margin-bottom:10px">${retPct.toFixed(0)}% → 50% (benchmark)</div>
+          <div style="background:rgba(107,63,160,0.08);border-radius:8px;padding:10px;font-size:11px;color:var(--dark);line-height:1.6">
+            <div style="font-weight:700;margin-bottom:4px;color:var(--purple)">HOW WE CALCULATED THIS</div>
+            <div>${Math.round(anc2).toLocaleString()} new clients/yr × (50% − ${retPct.toFixed(0)}%)</div>
+            <div>= ${Math.round(anc2*(0.5-retPct/100))} extra retained clients</div>
+            <div>× ${fmt$(at2)} avg ticket × 4 visits/yr</div>
+            <div style="border-top:1px solid rgba(107,63,160,0.2);margin-top:4px;padding-top:4px;font-weight:700">${Math.round(anc2*(0.5-retPct/100))} × ${fmt$(at2)} × 4 = ${fmt$(retUplift)}</div>
+            <div style="font-size:10px;color:var(--muted);margin-top:4px">${at2===0?'⚠️ Enter avg ticket on the Retention screen to see this calculation.':''}</div>
+          </div>
+        `}
       </div>
     </div>`;
 
@@ -1618,7 +1720,7 @@ function renderReport() {
   const retailUplift = getProjectedRetailUplift();
   const retCurrentRev = getRetentionRevenue(retPct);
   const retBenchRev = getRetentionRevenue(BENCHMARK_RETENTION);
-  const retUplift = retBenchRev - retCurrentRev;
+  const retUplift = Math.max(0, retBenchRev - retCurrentRev);
   const totalUplift = retailUplift + retUplift;
   const ftPct = t.totalClients > 0 ? (t.ftClients / t.totalClients * 100) : 0;
 
@@ -1688,7 +1790,7 @@ function renderReport() {
   const retailUplift = getProjectedRetailUplift();
   const retCurrentRev = getRetentionRevenue(retPct);
   const retBenchRev = getRetentionRevenue(BENCHMARK_RETENTION);
-  const retUplift = retBenchRev - retCurrentRev;
+  const retUplift = Math.max(0, retBenchRev - retCurrentRev);
   const totalUplift = retailUplift + retUplift;
   const ftPct = t.totalClients > 0 ? (t.ftClients / t.totalClients * 100) : 0;
   const retGoal = Math.min(50, Math.round(retPct + 15));
@@ -1783,30 +1885,43 @@ function renderReport() {
   statBox(M,      y,'Current Return Rate',retPct.toFixed(0)+'%','90-day return rate',retPct>=50?C.green:C.pink,retPct<50);
   statBox(M+bw+6, y,'R+Coach Benchmark', '50%',                'Target 90-day return rate',C.green,false);
   y+=37;
-  // Retention revenue math — 3 compact rows (replace broken %-as-$ barRows)
+  // Retention revenue math — 3 compact rows
   const retCurN = Math.round(ancPDF * retPct / 100);
   const retBenN = Math.round(ancPDF * 50 / 100);
+  const pdfAboveBench = retPct >= 50;
   // Row 1 — current retention revenue
-  fill(M, y, CW, 13, [248,245,255]); fill(M, y, 3, 13, [130,130,140]);
-  sf('bold',7,[60,60,75]);    tx(san('AT '+retPct.toFixed(0)+'% CURRENT RATE'), M+7, y+5);
+  fill(M, y, CW, 13, pdfAboveBench?[240,255,245]:[248,245,255]);
+  fill(M, y, 3, 13, pdfAboveBench?C.green:[130,130,140]);
+  sf('bold',7,pdfAboveBench?C.green:[60,60,75]);
+  tx(san('AT '+retPct.toFixed(0)+'% CURRENT RATE'+(pdfAboveBench?' - BENCHMARK ACHIEVED':'')), M+7, y+5);
   sf('normal',6.5,[90,90,100]); tx(san(fmtN(ancPDF)+' new clients x '+retPct.toFixed(0)+'% = '+fmtN(retCurN)+' retained  x  '+fmt$(atPDF)+' avg ticket  x  4 visits/yr'), M+7, y+10, {maxWidth:CW-45});
-  sf('bold',9,retPct>=50?C.green:C.pink); tx(fmt$(retCurrentRev), M+CW-4, y+9, {align:'right'});
+  sf('bold',9,C.green); tx(fmt$(retCurrentRev), M+CW-4, y+9, {align:'right'});
   y+=15;
-  // Row 2 — 50% benchmark retention revenue
-  fill(M, y, CW, 13, [240,255,245]); fill(M, y, 3, 13, C.green);
-  sf('bold',7,C.green);        tx('AT 50% R+COACH BENCHMARK', M+7, y+5);
-  sf('normal',6.5,[40,90,55]);  tx(san(fmtN(ancPDF)+' new clients x 50% = '+fmtN(retBenN)+' retained  x  '+fmt$(atPDF)+' avg ticket  x  4 visits/yr'), M+7, y+10, {maxWidth:CW-45});
-  sf('bold',9,C.green);         tx(fmt$(retBenchRev), M+CW-4, y+9, {align:'right'});
-  y+=15;
-  // Row 3 — opportunity delta
-  fill(M, y, CW, 10, C.dark); fill(M, y, 3, 10, C.purple);
-  sf('bold',7,C.purple); tx(san('OPPORTUNITY  +'+fmtN(retBenN-retCurN)+' retained clients'), M+7, y+6.5);
-  sf('bold',8,C.white);  tx(san('+'+fmt$(retUplift)+'/yr additional revenue'), M+CW-4, y+7, {align:'right'});
-  y+=14;
-  fill(M,y,CW,22,C.dark); fill(M,y,3,22,C.purple);
+  if (!pdfAboveBench) {
+    fill(M, y, CW, 13, [240,255,245]); fill(M, y, 3, 13, C.green);
+    sf('bold',7,C.green); tx('AT 50% R+COACH BENCHMARK', M+7, y+5);
+    sf('normal',6.5,[40,90,55]); tx(san(fmtN(ancPDF)+' new clients x 50% = '+fmtN(retBenN)+' retained  x  '+fmt$(atPDF)+' avg ticket  x  4 visits/yr'), M+7, y+10, {maxWidth:CW-45});
+    sf('bold',9,C.green); tx(fmt$(retBenchRev), M+CW-4, y+9, {align:'right'});
+    y+=15;
+    fill(M, y, CW, 10, C.dark); fill(M, y, 3, 10, C.purple);
+    sf('bold',7,C.purple); tx(san('OPPORTUNITY  +'+fmtN(retBenN-retCurN)+' retained clients'), M+7, y+6.5);
+    sf('bold',8,C.white); tx(san('+'+fmt$(retUplift)+'/yr additional revenue'), M+CW-4, y+7, {align:'right'});
+    y+=14;
+  } else {
+    fill(M, y, CW, 18, [245,240,255]); fill(M, y, 3, 18, C.purple);
+    sf('bold',7,C.purple); tx('NEXT FRONTIER: VISIT 3 & 4 CONVERSION', M+7, y+6);
+    sf('normal',6.5,[80,50,120]); tx(san('Even at '+retPct.toFixed(0)+'%, 3rd visit attrition runs ~36% and 4th visit sits at ~26%. Ask your R+Coach advisor about the New Client Migration Report.'), M+7, y+13, {maxWidth:CW-12});
+    y+=22;
+  }
+  fill(M,y,CW,22,C.dark); fill(M,y,3,22,pdfAboveBench?C.green:C.purple);
   sf('bold',10,C.white);
-  tx('"The gap between where you are and where you could be is real - and it\'s closeable."',M+8,y+9,{maxWidth:CW-12});
-  sf('normal',8,C.mgray); tx('See the next page for exactly what that gap is worth.',M+8,y+18);
+  if (pdfAboveBench) {
+    tx(san('"You\'ve cracked the code on new client retention. Now let\'s build loyalty all the way to Visit 4."'),M+8,y+9,{maxWidth:CW-12});
+    sf('normal',8,C.mgray); tx('Your next chapter: Visit 3 & 4 conversion coaching.',M+8,y+18);
+  } else {
+    tx('"The gap between where you are and where you could be is real - and it\'s closeable."',M+8,y+9,{maxWidth:CW-12});
+    sf('normal',8,C.mgray); tx('See the next page for exactly what that gap is worth.',M+8,y+18);
+  }
   pageFooter(2,5);
 
   // PAGE 3: THE OPPORTUNITY
@@ -1831,7 +1946,7 @@ function renderReport() {
     sf('normal',7,C.gray);tx(san(sub1),x+7,by+33); tx(san(sub2),x+7,by+39);
   }
   oppBox(M,      y,'RETAIL UPLIFT',   retailUplift,'Raising $/client:',fmt$(avgDPC)+' → '+fmt$(state.goalDPC)+'/client',C.bleu);
-  oppBox(M+hw+6, y,'RETENTION UPLIFT',retUplift,   'Raising return rate:',retPct.toFixed(0)+'% → 50% (benchmark)',C.purple);
+  oppBox(M+hw+6, y, retPct>=50?'RETENTION BENCHMARK':'RETENTION UPLIFT', retUplift, retPct>=50?'Already above 50%:':'Raising return rate:', retPct>=50?retPct.toFixed(0)+'% - Gold Standard':''+retPct.toFixed(0)+'% -> 50% (benchmark)', C.purple);
   y+=54;
   sf('bold',8,C.gray); tx('REVENUE PROGRESSION',M,y); y+=8;
   const cur=t.retailSales+retCurrentRev, pot=t.retailSales+retCurrentRev+retailUplift+retUplift, mx=pot*1.08;
@@ -2007,7 +2122,7 @@ function renderReport() {
   fill(M,y,CW,26,C.offwhite); fill(M,y,3,26,C.purple);
   sf('bold',9,C.dark);   tx('Your Goals',M+8,y+8);
   sf('normal',7.5,C.gray);
-  tx(san('$/Client: '+fmt$(avgDPC)+' -> '+fmt$(state.goalDPC)+'   Retention: '+retPct.toFixed(0)+'% -> 50%'),M+8,y+16,{maxWidth:CW-16});
+  tx(san('$/Client: '+fmt$(avgDPC)+' -> '+fmt$(state.goalDPC)+'   Retention: '+(retPct>=50?retPct.toFixed(0)+'% - Benchmark Achieved!':retPct.toFixed(0)+'% -> 50%')),M+8,y+16,{maxWidth:CW-16});
   tx(san('Annual opportunity: '+fmt$(totalUplift)),M+8,y+22,{maxWidth:CW-16});
   y+=32;
   // ── SECTION 1: HISTORICAL DATA TABLE ──
@@ -2115,7 +2230,7 @@ function renderReport() {
   sf('normal',6,[70,70,85]);
   tx(san('Current Year = retail sales ('+fmt$(t.retailSales)+') + current retention revenue ('+fmt$(retCurrentRev)+' at '+retPct.toFixed(0)+'% return rate)'),M+7,y+11,{maxWidth:CW-18});
   tx(san('Year 1 adds: retail uplift ('+fmt$(retailUplift)+') from raising $/client from '+fmt$(getAvgDPC())+' to '+fmt$(state.goalDPC)),M+7,y+18,{maxWidth:CW-18});
-  tx(san('Year 2 also adds: retention uplift ('+fmt$(retUplift)+') from raising return rate from '+retPct.toFixed(0)+'% to 50%'),M+7,y+24,{maxWidth:CW-18});
+  tx(san(retPct>=50 ? 'Retention benchmark already achieved at '+retPct.toFixed(0)+'%. Focus: Visit 3 & 4 conversion coaching.' : 'Year 2 also adds: retention uplift ('+fmt$(retUplift)+') from raising return rate from '+retPct.toFixed(0)+'% to 50%'),M+7,y+24,{maxWidth:CW-18});
   y+=32;
 
   // ── SECTION 3: YEAR 1 MONTHLY FORECAST ──
@@ -2173,7 +2288,7 @@ function renderReport() {
 
   sf('bold',8,C.gray); tx('YEAR 1 - MONTHLY CLIENT & RETAIL FORECAST',M,y); y+=4;
   sf('normal',6.5,C.gray);
-  tx(san('Each month builds off the same calendar month from the prior year (preserves seasonality) + extra retained clients as team improves from '+retPct.toFixed(0)+'% to 50%.  $/client ramps: '+fmt$(avgDPC)+' -> '+fmt$(state.goalDPC)+' by mo. 12'),M,y,{maxWidth:CW}); y+=7;
+  tx(san('Each month builds off the same calendar month from the prior year (preserves seasonality)'+(retPct<50?' + extra retained clients as team improves from '+retPct.toFixed(0)+'% to 50%':' — retention benchmark already achieved at '+retPct.toFixed(0)+'%')+'.  $/client ramps: '+fmt$(avgDPC)+' -> '+fmt$(state.goalDPC)+' by mo. 12'),M,y,{maxWidth:CW}); y+=7;
 
   const fcCols=[
     {label:'Month',    w:22},
@@ -2257,7 +2372,7 @@ function renderReport() {
   sf('bold',7,C.green);  tx('YEAR 1 PROJECTED ANNUAL RETAIL',M+8,y+6);
   sf('bold',15,C.white); tx(fmt$(fcAnnualRetail),M+8,y+16);
   sf('normal',7,C.mgray);
-  tx(san(fmt$(fcAnnualRetail - yr0)+' projected increase vs current year'),M+68,y+10,{maxWidth:CW-72});
+  tx(san(fmt$(fcAnnualRetail - t.retailSales)+' projected increase in retail vs current year'),M+68,y+10,{maxWidth:CW-72});
   y+=24;
 
   fill(0,H-14,W,14,C.purple);
