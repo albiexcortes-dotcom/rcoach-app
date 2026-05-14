@@ -1237,26 +1237,28 @@ function selectRetentionData(hasData) {
 }
 
 function prefillRetentionScreen() {
-  // Auto-fill annual new clients — annualize from Bucket 1 data
   const t = getTotals();
-  if (t.ftClients > 0) {
-    const filledMonths = state.monthData.filter(m => m.ftClients !== '').length || 1;
-    const annualized   = Math.round((t.ftClients / filledMonths) * 12);
-    const ancField     = document.getElementById('annualNewClients');
-    // Show annualized figure as placeholder with explanation
+  const ancField = document.getElementById('annualNewClients');
+
+  // Use ftClients if available, fall back to totalClients
+  const useClients  = t.ftClients > 0 ? t.ftClients : t.totalClients;
+  const clientLabel = t.ftClients > 0 ? 'new clients' : 'total clients';
+  const filledMonths = (t.ftClients > 0
+    ? state.monthData.filter(m => m.ftClients    !== '')
+    : state.monthData.filter(m => m.totalClients !== '')).length || 1;
+
+  if (useClients > 0) {
+    const annualized = Math.round((useClients / filledMonths) * 12);
     ancField.placeholder = `Auto: ${fmtN(annualized)}/yr`;
-    // Add helper note below the field explaining the math
-    const existingNote = document.getElementById('anc-auto-note');
-    if (!existingNote) {
-      const note = document.createElement('div');
+    let note = document.getElementById('anc-auto-note');
+    if (!note) {
+      note = document.createElement('div');
       note.id = 'anc-auto-note';
       note.style.cssText = 'font-size:11px;color:var(--muted);margin-top:4px;line-height:1.5';
-      note.innerHTML = `Based on <strong>${fmtN(t.ftClients)}</strong> new clients across <strong>${filledMonths}</strong> month${filledMonths>1?'s':''} of data &nbsp;→&nbsp; <strong>${fmtN(Math.round(t.ftClients/filledMonths))}/mo avg × 12 = ${fmtN(annualized)}/yr</strong>. Edit above to override.`;
       ancField.parentNode.appendChild(note);
     }
-    // Auto-populate the field if coach hasn't already entered a value
+    note.innerHTML = `Based on <strong>${fmtN(useClients)}</strong> ${clientLabel} across <strong>${filledMonths}</strong> month${filledMonths>1?'s':''} of data &nbsp;→&nbsp; <strong>${fmtN(Math.round(useClients/filledMonths))}/mo avg × 12 = ${fmtN(annualized)}/yr</strong>. Edit above to override.`;
     if (!state.annualNewClients) {
-      ancField.value = annualized;
       state.annualNewClients = String(annualized);
       saveState();
     }
@@ -1265,7 +1267,7 @@ function prefillRetentionScreen() {
   // Restore state values
   document.getElementById('sevenMonthClients').value = state.sevenMonthClients;
   document.getElementById('returnedIn90').value = state.returnedIn90;
-  document.getElementById('annualNewClients').value = state.annualNewClients;
+  ancField.value = state.annualNewClients;
   document.getElementById('avgTicket').value = state.avgTicket;
 
   // Wire up inputs — use 'input' so state saves on every keystroke, not just on blur
@@ -2204,21 +2206,79 @@ function renderReport() {
     y = 22;
   }
 
+  // ── YOY bar values — 4 cases so no two consecutive bars ever show the same number ──
+  // V3/V4 add-on: used whenever retUplift=0 (retention already at/above 50% benchmark)
+  // Industry: 36% of V2 clients drop off before V3 (64% convert). 74% of V3 convert to V4.
+  // Push V3 from 64%->75% (+11%) and V4 from 74%->85% (+11% of V3 base) = meaningful uplift.
+  const ancV34  = parseFloat(state.annualNewClients) || t.ftClients;
+  const dpcV34  = getAvgDPC();
+  const v34Up   = Math.max(
+    (ancV34*0.50*0.11 + ancV34*0.50*0.64*0.11) * dpcV34,
+    (t.retailSales + retCurrentRev) * 0.04   // floor at 4% of current baseline
+  );
+
   const yr0 = t.retailSales + retCurrentRev;
-  const yr1 = t.retailSales + retCurrentRev + retailUplift;
-  const yr2 = t.retailSales + retCurrentRev + retailUplift + retUplift;
+  let yr1, yr2, yr1Label, yr2Label, yr1Note, yr2Note, isAdvanced;
+
+  if (retailUplift > 0 && retUplift > 0) {
+    // ── Standard: both benchmarks still to achieve ──
+    isAdvanced = false;
+    yr1      = yr0 + retailUplift;
+    yr2      = yr1 + retUplift;
+    yr1Label = san('Year 1  --  $/Client Goal Achieved');
+    yr2Label = san('Year 2  --  Full R+Coach Potential');
+    yr1Note  = san('Year 1 adds: retail uplift ('+fmt$(retailUplift)+') from raising $/client from '+fmt$(dpcV34)+' to '+fmt$(state.goalDPC));
+    yr2Note  = san('Year 2 adds: retention uplift ('+fmt$(retUplift)+') from raising return rate from '+retPct.toFixed(0)+'% to 50%');
+
+  } else if (retailUplift > 0 && retUplift === 0) {
+    // ── Retention benchmark achieved, retail still in progress ──
+    isAdvanced = true;
+    yr1      = yr0 + retailUplift;
+    yr2      = yr1 + v34Up;
+    yr1Label = san('Year 1  --  $/Client Goal Achieved');
+    yr2Label = san('Year 2  --  Visit 3 & 4 Conversion Mastery');
+    yr1Note  = san('Year 1 adds: retail uplift ('+fmt$(retailUplift)+') from raising $/client from '+fmt$(dpcV34)+' to '+fmt$(state.goalDPC));
+    yr2Note  = san('Year 2: V3 conversion (64%->75%) + V4 loyalty mastery (74%->85%) = '+fmt$(v34Up)+' more');
+
+  } else if (retailUplift === 0 && retUplift > 0) {
+    // ── Retail benchmark achieved, retention still in progress ──
+    isAdvanced = true;
+    yr1      = yr0 + retUplift;
+    yr2      = yr1 + v34Up;
+    yr1Label = san('Year 1  --  Retention Goal Achieved');
+    yr2Label = san('Year 2  --  Visit 3 & 4 Conversion Mastery');
+    yr1Note  = san('Year 1: $/client benchmark achieved. Retention uplift ('+fmt$(retUplift)+') from raising return rate from '+retPct.toFixed(0)+'% to 50%');
+    yr2Note  = san('Year 2: V3 conversion (64%->75%) + V4 loyalty mastery (74%->85%) = '+fmt$(v34Up)+' more');
+
+  } else {
+    // ── Gold Standard: both benchmarks achieved — pivot to $24 DPC + V3/V4 ──
+    isAdvanced = true;
+    const annualCgs  = getAnnualClients();
+    const dpcTo24    = Math.max(0, 24 - dpcV34);
+    const gsRetailUp = dpcTo24 > 0 ? dpcTo24 * annualCgs : 2 * annualCgs;
+    yr1      = yr0 + gsRetailUp;
+    yr2      = yr1 + v34Up;
+    yr1Label = san('Year 1  --  Push to $24/Client Benchmark');
+    yr2Label = san('Year 2  --  Visit 3 & 4 Conversion Mastery');
+    yr1Note  = san('Year 1: Raise $/client from '+fmt$(dpcV34)+' toward $24 R+Co benchmark = '+fmt$(gsRetailUp)+' added');
+    yr2Note  = san('Year 2: V3 conversion (64%->75%) + V4 loyalty mastery (74%->85%) = '+fmt$(v34Up)+' more');
+  }
+
   const maxYr = yr2 * 1.08;
 
   sf('bold',9,C.dark); tx('YEAR-OVER-YEAR GROWTH FORECAST',M,y); y+=5;
   sf('normal',7,C.gray);
-  tx('What executing the full R+Coach playbook looks like in total annual retail revenue',M,y,{maxWidth:CW}); y+=9;
+  tx(isAdvanced
+    ? san('Benchmarks achieved. This is your next-level growth roadmap.')
+    : san('What executing the full R+Coach playbook looks like in total annual retail revenue'),
+    M,y,{maxWidth:CW}); y+=9;
 
-  bigBar('Current Year  (baseline)',          yr0, maxYr, [150,150,160], y); y+=22;
-  bigBar('Year 1  --  $/Client Goal Achieved',yr1, maxYr, C.bleu,        y); y+=22;
-  bigBar('Year 2  --  Full R+Coach Potential',yr2, maxYr, C.green,       y); y+=10;
+  bigBar('Current Year  (baseline)', yr0, maxYr, [150,150,160], y); y+=22;
+  bigBar(yr1Label,                   yr1, maxYr, C.bleu,         y); y+=22;
+  bigBar(yr2Label,                   yr2, maxYr, C.green,        y); y+=10;
 
   fill(M,y,CW,20,C.dark); fill(M,y,3,20,C.green);
-  sf('bold',7,C.green); tx('YEAR 2 FULL POTENTIAL',M+8,y+7);
+  sf('bold',7,C.green); tx(isAdvanced?'NEXT-LEVEL POTENTIAL':'YEAR 2 FULL POTENTIAL',M+8,y+7);
   sf('bold',16,C.white); tx(fmt$(yr2),M+8,y+17);
   sf('normal',7,C.mgray);
   tx(san(fmt$(yr2-yr0)+' more than today -- same clients, sharper team, better systems.'),M+68,y+13,{maxWidth:CW-72});
@@ -2229,8 +2289,8 @@ function renderReport() {
   sf('bold',6.5,C.purple); tx('HOW TO READ THESE NUMBERS',M+7,y+5);
   sf('normal',6,[70,70,85]);
   tx(san('Current Year = retail sales ('+fmt$(t.retailSales)+') + current retention revenue ('+fmt$(retCurrentRev)+' at '+retPct.toFixed(0)+'% return rate)'),M+7,y+11,{maxWidth:CW-18});
-  tx(san('Year 1 adds: retail uplift ('+fmt$(retailUplift)+') from raising $/client from '+fmt$(getAvgDPC())+' to '+fmt$(state.goalDPC)),M+7,y+18,{maxWidth:CW-18});
-  tx(san(retPct>=50 ? 'Retention benchmark already achieved at '+retPct.toFixed(0)+'%. Focus: Visit 3 & 4 conversion coaching.' : 'Year 2 also adds: retention uplift ('+fmt$(retUplift)+') from raising return rate from '+retPct.toFixed(0)+'% to 50%'),M+7,y+24,{maxWidth:CW-18});
+  tx(yr1Note,M+7,y+18,{maxWidth:CW-18});
+  tx(yr2Note,M+7,y+24,{maxWidth:CW-18});
   y+=32;
 
   // ── SECTION 3: YEAR 1 MONTHLY FORECAST ──
