@@ -557,6 +557,11 @@
       <button onclick="loadSampleData()" style="width:100%;height:48px;border-radius:12px;border:2px dashed var(--accent);background:rgba(253,129,141,0.06);font-family:var(--font);font-size:14px;font-weight:700;color:var(--accent);cursor:pointer;margin-top:4px;letter-spacing:0.02em">
         ✦ Preview with Sample Data
       </button>
+
+      <div style="margin-top:24px;padding:14px 16px;background:var(--bg);border:1px solid var(--border);border-radius:12px;font-size:11px;line-height:1.6;color:var(--muted);text-align:center">
+        <div style="font-size:10px;font-weight:800;letter-spacing:0.14em;color:var(--purple);margin-bottom:6px">POWERED BY R+COACH&reg;</div>
+        PROPRIETARY &amp; CONFIDENTIAL — This R+Coach platform contains proprietary methodologies, frameworks &amp; coaching strategies developed by R+Co and R+Coach for our authorized salon partners. Shared as a coaching resource — please keep its contents within your salon team. Unauthorized sharing, reproduction, or distribution is prohibited. © R+Coach. All Rights Reserved.
+      </div>
     </div>
 
     <!-- SCREEN 1: BUCKET 1 DATA ENTRY -->
@@ -1166,9 +1171,15 @@ function renderGoalSetting() {
   const slider = document.getElementById('goal-slider');
   const avgDPC = getAvgDPC();
 
-  // Set slider min to at least current DPC
+  // Set slider min/max dynamically based on current DPC
   const minVal = Math.max(1, Math.floor(avgDPC));
   slider.min = minVal;
+  slider.max = Math.max(40, Math.round(avgDPC * 2));
+
+  // Always default to 25% above current if goal hasn't been set above current yet
+  if (state.goalDPC <= avgDPC) {
+    state.goalDPC = Math.round(avgDPC * 1.25);
+  }
   slider.value = state.goalDPC;
 
   updateGoalDisplay();
@@ -1460,7 +1471,11 @@ function renderBucket2Analysis() {
     <div style="font-size:13px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.07em;margin-bottom:12px">Retention Revenue Journey</div>
     <div class="report-row"><span class="rr-label">At 25% — Industry Average</span><span class="rr-value">${fmt$(getRetentionRevenue(25))}/yr</span></div>
     <div class="report-row"><span class="rr-label">At 35% — R+Coach Growth Cycle</span><span class="rr-value" style="color:var(--purple)">${fmt$(getRetentionRevenue(35))}/yr</span></div>
-    <div class="report-row" style="border-bottom:none"><span class="rr-label">At 50% — R+Coach Benchmark</span><span class="rr-value" style="color:var(--success)">${fmt$(benchmarkRev)}/yr</span></div>`;
+    <div class="report-row" style="border-bottom:none"><span class="rr-label">At 50% — R+Coach Benchmark</span><span class="rr-value" style="color:var(--success)">${fmt$(benchmarkRev)}/yr</span></div>
+    <div style="margin-top:16px;background:var(--dark);border-radius:12px;padding:14px 16px;border-left:3px solid var(--success)">
+      <div style="font-size:10px;font-weight:700;letter-spacing:0.1em;color:var(--success);margin-bottom:6px">WHAT HAPPENS AFTER 50%</div>
+      <div style="font-size:13px;color:rgba(255,255,255,0.85);line-height:1.6">When a stylist consistently converts 50% of new clients, their chair begins filling with returning guests — visit after visit. That compounding loyalty drives utilization toward <strong style="color:white">80%</strong>. And at 80% chair utilization, Adam Smith's law of Supply &amp; Demand takes over: <strong style="color:var(--success)">a full book earns the right to raise prices.</strong> Retention isn't just a service metric — it's the engine of long-term income growth.</div>
+    </div>`;
 }
 
 // ============================================================
@@ -1607,7 +1622,7 @@ function renderRoadmap() {
       <div class="phase-header">
         <div class="phase-number accent">2</div>
         <div>
-          <div class="phase-title">Plant the Seeds — 5 Touch Points</div>
+          <div class="phase-title">Plant the 5 Seeds</div>
           <div style="font-size:12px;color:var(--muted)">Light, authentic, never pushy</div>
         </div>
       </div>
@@ -1674,7 +1689,7 @@ function renderRoadmap() {
       </div>
       <div class="roadmap-item" style="border-color:var(--accent)">
         <div style="width:22px;height:22px;border-radius:50%;background:var(--accent);color:white;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;flex-shrink:0">3</div>
-        <div class="ri-text"><strong>Strategic gift presentation</strong> — after shampoo, back at the chair. Stylist presents and walks through each item. This is Touch Point 3 from Pillar 2 — one moment doing three jobs.</div>
+        <div class="ri-text"><strong>Strategic gift presentation</strong> — after shampoo, back at the chair. Stylist presents and walks through each item. This is Step 3 from Pillar 2 — one moment doing three jobs.</div>
       </div>
       <div class="roadmap-item">
         <div style="width:22px;height:22px;border-radius:50%;background:var(--border);color:var(--dark);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;flex-shrink:0">4</div>
@@ -1690,7 +1705,7 @@ function renderRoadmap() {
       </div>
       <div class="roadmap-item">
         <div style="width:22px;height:22px;border-radius:50%;background:var(--border);color:var(--dark);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;flex-shrink:0">7</div>
-        <div class="ri-text"><strong>The 5 Touch Points</strong> — Pillar 2 is the backbone woven through the entire visit. Steps 1–6 only land because the stylist has already been planting seeds since the consultation.</div>
+        <div class="ri-text"><strong>The 5 Seeds</strong> — Pillar 2 is the backbone woven through the entire visit. Steps 1–6 only land because the stylist has already been planting seeds since the consultation.</div>
       </div>
     </div>
 
@@ -1700,15 +1715,64 @@ function renderRoadmap() {
         <div class="phase-number" style="background:var(--success)">5</div>
         <div>
           <div class="phase-title">The Nurture Sequence</div>
-          <div style="font-size:12px;color:var(--muted)">The relationship doesn't end at checkout</div>
+          <div style="font-size:12px;color:var(--muted)">The 4-Visit Loyalty Journey — V1 through V4</div>
         </div>
       </div>
-      <div class="roadmap-item"><div class="ri-dot" style="background:var(--success)"></div><div class="ri-text"><strong>Same day</strong> — personalized thank-you text from the stylist + complimentary treatment reminder (90-day clock starts now)</div></div>
+
+      <div style="background:var(--bg);border-radius:10px;padding:10px 14px;margin-bottom:10px;font-size:13px;line-height:1.6;border:1px solid var(--border)">
+        <strong>The data:</strong> Best-in-class salons see 56% return after V1 — but without nurturing between visits, only 36% come back for V3 and 26% for V4. <em>The silence between visits is the retention leak.</em> These three campaigns seal it.
+      </div>
+
+      <!-- Chapter 1: V1 → V2 -->
+      <div style="background:var(--success);border-radius:8px;padding:7px 12px;margin:4px 0 0;font-size:11px;font-weight:700;letter-spacing:0.07em;text-transform:uppercase;color:white">
+        Chapter 1 — Visit 1 → Visit 2 &nbsp;·&nbsp; Goal: 50% Return Rate
+      </div>
+      <div style="background:#e8f7ef;border:1px solid rgba(42,157,92,0.3);border-top:none;border-radius:0 0 8px 8px;padding:10px 14px;margin-bottom:10px;font-size:12px;line-height:1.5;color:#1a6b3f">
+        <strong>⚡ Conditional automated flow.</strong> Every message stops the moment the client books — no redundant nudges after they've committed.
+      </div>
+      <div class="roadmap-item"><div class="ri-dot" style="background:var(--success)"></div><div class="ri-text"><strong>Same day (SMS)</strong> — A personal message from the stylist, in their own words, sent from the salon's software. Thank-you + complimentary treatment reminder (90-day clock starts now).</div></div>
       <div class="roadmap-item"><div class="ri-dot" style="background:var(--success)"></div><div class="ri-text"><strong>Day 3</strong> — Google review request + at-home haircare email (ties retail back to staff education and small business support)</div></div>
       <div class="roadmap-item"><div class="ri-dot" style="background:var(--success)"></div><div class="ri-text"><strong>Day 30</strong> — Check-in email with styling tutorials + social media showcase</div></div>
       <div class="roadmap-item"><div class="ri-dot" style="background:var(--success)"></div><div class="ri-text"><strong>Day 45</strong> — Complimentary treatment reminder: <em>"Your offer expires in 2 weeks"</em> + product highlight</div></div>
       <div class="roadmap-item"><div class="ri-dot" style="background:var(--success)"></div><div class="ri-text"><strong>Day 60</strong> — "Find your perfect stylist" — position each team member as a transformation expert with bios + before/afters</div></div>
       <div class="roadmap-item"><div class="ri-dot" style="background:var(--success)"></div><div class="ri-text"><strong>Day 75</strong> — Final push: <strong>$20 off retail</strong> at next service. Every email includes one-tap booking. Goal: <strong>50%</strong> return rate by 90 days.</div></div>
+
+      <!-- Chapter 2: V2 → V3 -->
+      <div style="background:var(--bleu);border-radius:8px;padding:7px 12px;margin:16px 0 0;font-size:11px;font-weight:700;letter-spacing:0.07em;text-transform:uppercase;color:white">
+        Chapter 2 — Visit 2 → Visit 3 &nbsp;·&nbsp; The Scalp Therapy Gift
+      </div>
+      <div style="background:#e8ebfe;border:1px solid rgba(19,51,246,0.2);border-top:none;border-radius:0 0 8px 8px;padding:10px 14px;margin-bottom:10px;font-size:12px;line-height:1.5;color:#0f267a">
+        <strong>⚡ Conditional automated flow.</strong> The moment the client books Visit 3, this sequence stops automatically. The campaign exists only to activate the gift card already in their hands.
+      </div>
+      <div style="background:var(--bleu-mid);border:1px solid rgba(19,51,246,0.25);border-radius:10px;padding:12px 14px;margin-bottom:10px;font-size:13px;line-height:1.6">
+        <div style="font-size:11px;font-weight:700;color:var(--bleu);text-transform:uppercase;letter-spacing:0.07em;margin-bottom:5px">✨ The In-Chair Moment — End of Visit 2</div>
+        The gift reveal happens <strong>in the chair, not via email.</strong> As the client prepares to leave, the stylist presents a <strong>beautifully branded thank-you card from the owner</strong> — inside is a <strong>gift card for a Complimentary BLEU Scalp Therapy Pre-Shampoo Scrub Massage</strong> ($40 value) redeemable at their next visit. Physical. Personal. Unexpected. <em>This is the impact moment.</em> The email campaign that follows doesn't tease or reveal — it builds desire for the experience they already hold in their hands.
+      </div>
+      <div class="roadmap-item"><div class="ri-dot" style="background:var(--bleu)"></div><div class="ri-text"><strong>Same day (SMS)</strong> — A personal message from the stylist, in their own words, sent from the salon's software: <em>"So great seeing you today! That gift card is waiting whenever you're ready — I can't wait for you to experience this."</em></div></div>
+      <div class="roadmap-item"><div class="ri-dot" style="background:var(--bleu)"></div><div class="ri-text"><strong>Day 3 (Email)</strong> — The Science of Scalp Health: why a healthy scalp = better colour hold, stronger growth, and more luxurious hair. Plant the education seed.</div></div>
+      <div class="roadmap-item"><div class="ri-dot" style="background:var(--bleu)"></div><div class="ri-text"><strong>Day 21 (Email)</strong> — The Luxury Experience Preview: what to expect during the Scalp Therapy service — the sensation, the ritual, the transformation. Build desire for what they already know is coming.</div></div>
+      <div class="roadmap-item"><div class="ri-dot" style="background:var(--bleu)"></div><div class="ri-text"><strong>Day 30 (SMS)</strong> — <em>"Your Scalp Therapy gift card is still waiting 💙 — have you had a chance to book yet?"</em> Gentle nudge.</div></div>
+      <div class="roadmap-item" style="border-color:var(--bleu)"><div class="ri-dot" style="background:var(--bleu)"></div><div class="ri-text"><strong>Day 42 (Email)</strong> — Client love: real results from scalp therapy clients — before/after stories, reviews, imagery. Social proof closes what education opens. One-tap booking link.</div></div>
+      <div class="roadmap-item"><div class="ri-dot" style="background:var(--bleu)"></div><div class="ri-text"><strong>Day 50 (SMS)</strong> — <em>"A few spots open this month for your treatment — want me to hold one for you?"</em> Soft urgency, personal tone.</div></div>
+      <div class="roadmap-item"><div class="ri-dot" style="background:var(--bleu)"></div><div class="ri-text"><strong>Day 60 (Email)</strong> — Final push: <em>"Your complimentary Scalp Therapy gift card expires soon — don't let this one go."</em> One-tap booking. E-commerce data: after 60 days, conversion probability drops over 70%.</div></div>
+
+      <!-- Chapter 3: V3 → V4 -->
+      <div style="background:var(--purple);border-radius:8px;padding:7px 12px;margin:16px 0 0;font-size:11px;font-weight:700;letter-spacing:0.07em;text-transform:uppercase;color:white">
+        Chapter 3 — Visit 3 → Visit 4 &nbsp;·&nbsp; The Loyalty Threshold
+      </div>
+      <div style="background:#f0eaf8;border:1px solid rgba(107,63,160,0.2);border-top:none;border-radius:0 0 8px 8px;padding:10px 14px;margin-bottom:10px;font-size:12px;line-height:1.5;color:#4a2870">
+        <strong>⚡ Conditional automated flow.</strong> The moment the client books Visit 4, this sequence stops immediately. The Travel Kit is pure surprise &amp; delight — revealed via email, never mentioned in the chair.
+      </div>
+      <div style="background:var(--purple-light);border:1px solid var(--purple-mid);border-radius:10px;padding:12px 14px;margin-bottom:10px;font-size:13px;line-height:1.6">
+        <div style="font-size:11px;font-weight:700;color:var(--purple);text-transform:uppercase;letter-spacing:0.07em;margin-bottom:5px">🎁 Surprise &amp; Delight — The Gift Revealed at V4</div>
+        <strong>BLEU Styling Travel Kit</strong> — $49 value. Unlike the Scalp Therapy gift, this one is <strong>never mentioned in the chair</strong>. It's unveiled entirely through the email campaign — building anticipation before the reveal. Gifted at Visit 4 as a welcome-to-the-family moment. The kit goes home, sits on their counter, gets used every day. Daily brand moments between every future visit. Clients who reach V4 spend 67% more and refer at 3× the rate.
+      </div>
+      <div class="roadmap-item"><div class="ri-dot" style="background:var(--purple)"></div><div class="ri-text"><strong>Same day (SMS)</strong> — A personal message from the stylist, in their own words, sent from the salon's software — referencing something specific from V3: <em>"Your scalp looked incredible today — that treatment is already working its magic."</em></div></div>
+      <div class="roadmap-item"><div class="ri-dot" style="background:var(--purple)"></div><div class="ri-text"><strong>Day 3 (Email)</strong> — "3 visits in — here's what your hair journey has looked like." Personalized recap of their transformation arc. Make it feel like a story, not a promotion.</div></div>
+      <div class="roadmap-item"><div class="ri-dot" style="background:var(--purple)"></div><div class="ri-text"><strong>Day 21 (Email)</strong> — VIP language begins: <em>"Clients who visit 4+ times with us are in a completely different category..."</em> Identity shift, not a discount. This is where loyalty is built in the mind first.</div></div>
+      <div class="roadmap-item"><div class="ri-dot" style="background:var(--purple)"></div><div class="ri-text"><strong>Day 35 (SMS)</strong> — <em>"We have something waiting for you at your next visit — it's a good one 🎁"</em> Tease only. Let anticipation do the work.</div></div>
+      <div class="roadmap-item" style="border-color:var(--purple)"><div class="ri-dot" style="background:var(--purple)"></div><div class="ri-text"><strong>Day 45 (Email) — The Reveal:</strong> BLEU Styling Travel Kit ($49 value) gifted at Visit 4. <em>"You've earned this."</em> One-tap booking. This is the loyalty graduation moment.</div></div>
+      <div class="roadmap-item"><div class="ri-dot" style="background:var(--purple)"></div><div class="ri-text"><strong>Day 55 (SMS)</strong> — Final closer: <em>"Your Travel Kit is ready. Let's get you booked."</em> After Visit 4 — the loyalty flywheel is spinning. This client is yours for life.</div></div>
     </div>`;
 }
 
@@ -1807,8 +1871,8 @@ function renderReport() {
   const pageFooter = (pg,total) => {
     fill(0, H-10, W, 10, C.bgray);
     hln(0, W, H-10, C.lgray, 0.3);
-    sf('normal',7,C.gray);
-    tx('R+Coach  ·  Confidential Coaching Report', M, H-4);
+    sf('normal',6,C.gray);
+    tx('PROPRIETARY & CONFIDENTIAL  |  Powered by R+Coach(R) Technology  |  Not for Distribution  |  (c) R+Coach. All Rights Reserved.', M, H-4, {maxWidth:W-M*2-22});
     tx('Page '+pg+' of '+total, W-M, H-4, {align:'right'});
   };
 
@@ -1822,12 +1886,13 @@ function renderReport() {
   // Repaint dark below divider to kill any JPEG bleed
   fill(0, 43, W, H-43, C.dark);
     sf('bold', 9, C.purple); tx('SALON PERFORMANCE COACHING REPORT', M, 114);
-  hln(M, W-M, 121, [55,55,55], 0.4);
-  sf('bold', 28, C.white); tx(state.salonName || 'Salon Analysis', M, 140);
-  sf('normal', 13, C.mgray); tx(state.ownerName || '', M, 153);
+  sf('bold', 7, [200,180,255]); tx('POWERED BY R+COACH(R)', M, 122);
+  hln(M, W-M, 127, [55,55,55], 0.4);
+  sf('bold', 28, C.white); tx(state.salonName || 'Salon Analysis', M, 144);
+  sf('normal', 13, C.mgray); tx(state.ownerName || '', M, 157);
   sf('normal', 11, [100,100,100]);
-  tx(state.periodLabel || '12-Month Analysis', M, 163);
-  tx('Prepared: '+new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'}), M, 172);
+  tx(state.periodLabel || '12-Month Analysis', M, 167);
+  tx('Prepared: '+new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'}), M, 175);
   fill(M, 186, CW, 76, [20,20,30]);
   fill(M, 186, 3, 76, C.purple);
   sf('bold', 8, C.purple); tx("WHAT'S INSIDE", M+9, 195);
@@ -1845,8 +1910,15 @@ function renderReport() {
     sf('normal',8,[130,130,150]); tx(desc,M+19,iy+5);
     iy += 13;
   });
+  // Confidentiality block above footer
+  fill(M, 268, CW, 12, [15,15,22]);
+  fill(M, 268, 2, 12, C.purple);
+  sf('bold', 6, C.purple); tx('PROPRIETARY & CONFIDENTIAL', M+5, 272.5);
+  sf('normal', 5.5, [150,150,170]);
+  tx('This R+Coach playbook contains proprietary methodologies, frameworks, and coaching strategies developed by R+Co for our authorized salon partners. Please keep its contents within your salon team. Unauthorized sharing, reproduction, or distribution is prohibited. (c) R+Coach. All Rights Reserved.', M+5, 277.5, {maxWidth:CW-8});
+
   fill(0, H-14, W, 14, C.purple);
-  sf('bold',9,C.white); tx('R+Coach  ·  randco.com', W/2, H-6, {align:'center'});
+  sf('bold',9,C.white); tx('R+Coach  |  randco.com  |  Powered by R+Coach(R) Technology', W/2, H-6, {align:'center'});
 
   // PAGE 2: YOUR CURRENT REALITY
   doc.addPage();
@@ -2065,7 +2137,7 @@ function renderReport() {
     'STYLING TEAM - Sell more, earn more: retail commission turns product education into direct income',
     'FRONT DESK - 15-20% share of monthly retail growth. When the salon wins, the whole team wins.',
   ]);
-  pillar('2', 'Plant the Seeds - 5 Touch Points', 'Light, authentic, never pushy', C.bleu, [
+  pillar('2', 'Plant the 5 Seeds', 'Light, authentic, never pushy', C.bleu, [
     'Consultation (Discovery Mode): "How did you find us?" -> "What do you currently use?" -> "Would you be opposed to trying a new haircare regimen at the end of our time today?"',
     'Backbar: Name every product used during the wash. Explain the technology. Make it personal.',
     'Gift presentation - back at the chair after shampoo: walk through each item. Complimentary treatment, same-day gift card, samples. This is the FOMO moment.',
@@ -2081,14 +2153,139 @@ function renderReport() {
     'Steps 1-2: VIP Gift Bag (full-size BLEU backed into ticket) + General New Client Gift: personal letter, 90-day treatment, same-day 20% gift card, samples & branded items',
     'Step 3: Strategic gift presentation - back at the chair after shampoo. One moment doing three jobs.',
     'Steps 4-5: Robe color signal (whole team on alert) + Owner personally greets new client during service',
-    'Steps 6-7: Email/SMS nurture launches same day. The 5 Touch Points are the backbone of the entire visit',
+    'Steps 6-7: Email/SMS nurture launches same day. The 5 Seeds are the backbone of the entire visit',
   ]);
-  pillar('5', 'The Nurture Sequence', 'The relationship doesn\'t end at checkout', C.green, [
-    'Same day: thank-you text from stylist + 90-day complimentary treatment reminder',
-    'Day 3 -> 30 -> 45 -> 60 -> 75: Google review, check-in, offer reminder, stylist showcase, $20 off retail',
-    'Every email includes a one-tap booking link. Goal: 50% return rate within 90 days.',
+  pillar('5', 'The Nurture Sequence', 'The 4-Visit Loyalty Journey — full detail on following page', C.green, [
+    'Three conditional automated flows — one for each visit gap — seal the retention waterfall. V1→V2 (Goal: 50%), V2→V3 (Scalp Therapy Gift, $40), V3→V4 (Travel Kit, $49).',
+    'All SMS messages are sent from the salon\'s software in the stylist\'s voice. Every flow stops automatically the moment the client books their next appointment.',
+    'See the complete 3-Phase Nurture Sequence Report on the following page.',
   ]);
   { const pg=doc.getNumberOfPages(); pageFooter(pg,pg); }
+
+  // ── DEDICATED NURTURE SEQUENCE PAGE ─────────────────────────────
+  doc.addPage();
+  let ny = 0;
+
+  // Page header
+  fill(0, 0, W, 15, C.dark);
+  sf('bold', 9, C.white); tx('THE 4-VISIT LOYALTY JOURNEY', M, 10.5);
+  sf('normal', 6.5, C.mgray); tx('R+Coach Nurture Sequence  -  3-Phase Client Retention Framework', W-M, 10.5, {align:'right'});
+  fill(0, 15, W, 2, C.green);
+  ny = 24;
+
+  // Retention waterfall data — stacked layout, no overflow
+  fill(M, ny, CW, 26, C.dark);
+  sf('bold', 6.5, C.green); tx('THE RETENTION WATERFALL  -  BEST-IN-CLASS SALON DATA', M+6, ny+6, {maxWidth:CW-12});
+  sf('bold', 11, C.white); tx('56%  ->  36%  ->  26%', M+6, ny+14, {maxWidth:CW-12});
+  sf('normal', 5.5, C.mgray); tx('V1 return rate              V3 return rate              V4 return rate', M+6, ny+19, {maxWidth:CW-12});
+  sf('italic', 5.5, [130,140,130]); tx(san('The silence between visits is the retention leak. These three flows seal it.'), M+6, ny+24, {maxWidth:CW-12});
+  ny += 30;
+
+  // Brand voice note
+  fill(M, ny, CW, 14, [245,243,250]);
+  fill(M, ny, 3, 14, C.purple);
+  sf('bold', 6.5, C.purple); tx('DESIGNED FOR YOUR BRAND VOICE', M+7, ny+5.5);
+  sf('normal', 6.5, [70,50,110]);
+  tx(san('These flows are a framework -- not a script. Adapt the messaging, timing, and tone to reflect your brand and your clients unique experience. The best marketing sounds like you.'), M+7, ny+10.5, {maxWidth:CW-12});
+  ny += 18;
+
+  // ── Helper functions ─────────────────────────────────────────────
+  const nPageCheck = (needed) => {
+    if (ny + needed > H - 12) {
+      pageFooter(doc.getNumberOfPages(), doc.getNumberOfPages());
+      doc.addPage();
+      ny = 14;
+    }
+  };
+
+  const drawPhaseHeader = (label, subtitle, color, lightBg, noteColor) => {
+    nPageCheck(32);
+    fill(M, ny, CW, 10, color);
+    sf('bold', 8, C.white); tx(san(label), M+5, ny+7, {maxWidth:CW*0.55});
+    sf('normal', 6.5, lightBg); tx(san(subtitle), W-M, ny+7, {align:'right', maxWidth:CW*0.42});
+    ny += 10;
+    fill(M, ny, CW, 7.5, lightBg);
+    fill(M, ny, 2.5, 7.5, color);
+    sf('normal', 6, noteColor);
+    tx(san('Conditional flow - stops the moment the client books. All SMS sent from salon software in the stylist\'s voice.'), M+6, ny+5.5, {maxWidth:CW-10});
+    ny += 10;
+  };
+
+  const drawTouchPoint = (day, ch, msg, accent, highlight) => {
+    const lines = sp(san(msg), CW-30);
+    const rh = Math.max(13, lines.length * 4.5 + 8);
+    nPageCheck(rh + 2);
+    if (highlight) { fill(M, ny, CW, rh, highlight === 'blue' ? [235,242,255] : highlight === 'purple' ? [245,240,252] : [232,247,239]); fill(M, ny, 2, rh, accent); }
+    fill(M, ny, 24, rh, highlight ? accent : [238,238,242]);
+    sf('bold', 6, highlight ? C.white : C.dark);
+    tx(san(day), M+12, ny + rh/2 - 1, {align:'center', maxWidth:22});
+    sf('bold', 5.5, highlight ? C.white : accent);
+    tx(san(ch), M+12, ny + rh/2 + 3.5, {align:'center', maxWidth:22});
+    sf('normal', 7, C.dark);
+    tx(lines, M+28, ny+5.5, {maxWidth:CW-32});
+    ny += rh + 2;
+  };
+
+  // ── PHASE 1: V1 to V2 ───────────────────────────────────────────
+  drawPhaseHeader('PHASE 1  --  VISIT 1 to VISIT 2', 'Goal: 50% First-Time Client Return Rate', C.green, [232,247,239], [26,107,63]);
+  ny += 2;
+  drawTouchPoint('SAME\nDAY',  'SMS',   'A personal message from the stylist, in their own words, sent from the salon\'s software. Thank-you + complimentary treatment reminder (90-day clock starts now).', C.green, false);
+  drawTouchPoint('DAY 3',      'EMAIL', 'Google review request + at-home haircare email. Ties the retail recommendation back to the client\'s specific service.', C.green, false);
+  drawTouchPoint('DAY 30',     'EMAIL', 'Check-in email with styling tutorials + social media showcase. Keep the relationship warm.', C.green, false);
+  drawTouchPoint('DAY 45',     'EMAIL', 'Complimentary treatment reminder -- "Your offer expires in 2 weeks." Product highlight. Urgency with warmth.', C.green, 'green');
+  drawTouchPoint('DAY 60',     'EMAIL', 'Stylist showcase -- position every team member as a transformation expert with bios + before/after imagery.', C.green, false);
+  drawTouchPoint('DAY 75',     'EMAIL', 'Final push: $20 off retail at next service. One-tap booking link in every email. Goal: 50% return rate within 90 days.', C.green, false);
+  ny += 8;
+
+  // ── PHASE 2: V2 to V3 ───────────────────────────────────────────
+  drawPhaseHeader('PHASE 2  --  VISIT 2 to VISIT 3', 'The Scalp Therapy Gift', C.bleu, [232,236,254], [15,38,122]);
+
+  nPageCheck(24);
+  fill(M, ny, CW, 22, [235,242,255]);
+  fill(M, ny, 3, 22, C.bleu);
+  sf('bold', 6.5, C.bleu); tx('THE IN-CHAIR MOMENT  --  END OF VISIT 2', M+7, ny+7, {maxWidth:CW-12});
+  sf('normal', 6.5, [30,50,140]);
+  tx(san('The reveal happens in the chair -- not via email. As the client prepares to leave, the stylist presents a beautifully branded thank-you card from the owner. Inside: a gift card for a Complimentary BLEU Scalp Therapy Pre-Shampoo Scrub Massage ($40 value). The email campaign that follows builds desire for what they already hold in their hands.'), M+7, ny+13, {maxWidth:CW-12});
+  ny += 26;
+
+  drawTouchPoint('SAME\nDAY',  'SMS',   'A personal message from the stylist, in their own words, sent from the salon\'s software. "So great seeing you today! That gift card is waiting whenever you\'re ready."', C.bleu, false);
+  drawTouchPoint('DAY 3',      'EMAIL', 'The Science of Scalp Health -- why a healthy scalp means better colour hold, stronger growth, and more luxurious hair. Plant the education seed.', C.bleu, false);
+  drawTouchPoint('DAY 21',     'EMAIL', 'The Luxury Experience Preview -- what to expect during the Scalp Therapy service. The sensation, the ritual, the transformation. Build desire for what is already coming.', C.bleu, false);
+  drawTouchPoint('DAY 30',     'SMS',   '"Your Scalp Therapy gift card is still waiting -- have you had a chance to book yet?" Gentle, personal nudge.', C.bleu, false);
+  drawTouchPoint('DAY 42',     'EMAIL', 'Client love -- real results from scalp therapy clients. Before/after stories, reviews, imagery. Social proof closes what education opens. One-tap booking link.', C.bleu, 'blue');
+  drawTouchPoint('DAY 50',     'SMS',   '"A few spots open this month for your treatment -- want me to hold one for you?" Soft urgency, personal tone.', C.bleu, false);
+  drawTouchPoint('DAY 60',     'EMAIL', 'Final push -- "Your complimentary Scalp Therapy gift card expires soon -- do not let this one go." One-tap booking link.', C.bleu, false);
+  ny += 8;
+
+  // ── PHASE 3: V3 to V4 ───────────────────────────────────────────
+  drawPhaseHeader('PHASE 3  --  VISIT 3 to VISIT 4', 'The Loyalty Threshold -- Surprise & Delight', C.purple, [245,240,252], [74,40,112]);
+
+  nPageCheck(20);
+  fill(M, ny, CW, 18, [245,240,252]);
+  fill(M, ny, 3, 18, C.purple);
+  sf('bold', 6.5, C.purple); tx('SURPRISE & DELIGHT  --  THE GIFT IS NEVER MENTIONED IN THE CHAIR', M+7, ny+6.5, {maxWidth:CW-12});
+  sf('normal', 6.5, [74,40,112]);
+  tx(san('The BLEU Styling Travel Kit ($49 value) is unveiled entirely through the email campaign -- never mentioned at V3. Clients who reach V4 spend 67% more than new clients and refer at 3x the rate.'), M+7, ny+12.5, {maxWidth:CW-12});
+  ny += 22;
+
+  drawTouchPoint('SAME\nDAY',  'SMS',   'A personal message from the stylist, in their own words, sent from the salon\'s software -- referencing something specific from V3: "Your scalp looked incredible today -- that treatment is working."', C.purple, false);
+  drawTouchPoint('DAY 3',      'EMAIL', '"3 visits in -- here\'s what your hair journey has looked like." Personalized recap of their transformation arc. A story, not a promotion.', C.purple, false);
+  drawTouchPoint('DAY 21',     'EMAIL', 'VIP language begins -- "Clients who visit 4+ times with us are in a completely different category..." Identity shift, not a discount. Loyalty is built in the mind first.', C.purple, false);
+  drawTouchPoint('DAY 35',     'SMS',   '"We have something waiting for you at your next visit -- it\'s a good one." Tease only. Let anticipation do the work.', C.purple, false);
+  drawTouchPoint('DAY 45',     'EMAIL', 'THE REVEAL: BLEU Styling Travel Kit ($49 value) gifted at Visit 4. "You\'ve earned this." One-tap booking link. The loyalty graduation moment.', C.purple, 'purple');
+  drawTouchPoint('DAY 55',     'SMS',   '"Your Travel Kit is ready. Let\'s get you booked." After Visit 4 -- the loyalty flywheel is spinning. This client is yours for life.', C.purple, false);
+  ny += 8;
+
+  // Closing note
+  nPageCheck(18);
+  fill(M, ny, CW, 16, C.dark);
+  fill(M, ny, 3, 16, C.green);
+  sf('bold', 7, C.green); tx('THE COMPOUNDING INTEREST OF RETENTION', M+8, ny+7, {maxWidth:CW-14});
+  sf('normal', 6.5, [180,200,185]);
+  tx(san('When a stylist consistently converts 50% of new clients, their chair fills with returning guests -- driving utilization toward 80%. At 80%, Adam Smith\'s law of Supply & Demand earns the right to raise prices. Retention is not just a service metric. It is the engine of long-term income growth.'), M+8, ny+12, {maxWidth:CW-14});
+  ny += 18;
+
+  pageFooter(doc.getNumberOfPages(), doc.getNumberOfPages());
 
   // PAGE 5: WHAT HAPPENS NEXT + TRACKER
   doc.addPage();
@@ -2104,8 +2301,8 @@ function renderReport() {
      desc:'Set up VIP & General gift bags. Write the owner\'s personal letter. Load same-day 20% gift cards. Brief every team member on the robe color signal.'},
     {t:'WEEK 2–3',c:C.purple,title:'Front Desk Product Training',
      desc:'Send the Top 6–8 station products home with the front desk team. Schedule a debrief — what did they love? What\'s their authentic Sunday brunch close?'},
-    {t:'MONTH 2',c:C.dark,title:'Launch Email + SMS Nurture Sequence',
-     desc:'Activate the 75-day follow-up flow for all new clients. Every new client from this point forward enters the sequence automatically.'},
+    {t:'MONTH 2',c:C.dark,title:'Launch the 3-Phase Nurture Sequence',
+     desc:'Activate all three conditional flows. Phase 1 (V1->V2): 75-day sequence for every new client. Phase 2 (V2->V3): Scalp Therapy gift card presented in-chair at Visit 2, followed by a 60-day desire-building campaign. Phase 3 (V3->V4): 55-day surprise & delight campaign culminating in the BLEU Travel Kit reveal. Every flow stops automatically the moment the client books their next visit.'},
     {t:'MONTH 3',c:C.green,title:'First 90-Day Retention Check',
      desc:'Pull first-time clients from 3 months ago. How many returned? Compare against your baseline of '+retPct.toFixed(0)+'%. Celebrate progress. Adjust where needed.'},
   ];
@@ -2436,7 +2633,7 @@ function renderReport() {
   y+=24;
 
   fill(0,H-14,W,14,C.purple);
-  sf('bold',9,C.white); tx('R+Coach  \xb7  randco.com  \xb7  Confidential Coaching Report',W/2,H-6,{align:'center'});
+  sf('bold',9,C.white); tx('R+Coach  |  randco.com  |  Powered by R+Coach(R) Technology',W/2,H-6,{align:'center'});
 
   doc.save('RandCoach-'+(state.salonName||'Salon').replace(/\s+/g,'-')+'-Report.pdf');
 }
